@@ -13,7 +13,8 @@ def ApiOverview(request):
     api_urls = {
         'all_msg': '/',
         'Get All': 'all/',
-        'Get All since date': 'all/?since=datetime',
+        'Get All between 2 people': 'all/?p1=n1&p2=n2',
+        'Get All since date between 2 people': 'all/?since=datetime&p1=n1&p2=n2',
         'Add': '/create',
     }
  
@@ -34,17 +35,17 @@ def add_msg(request):
 
 @api_view(['GET'])
 def view_msgs(request):
-    # checking for the parameters from the URL
-
     if request.query_params:
-        msgs = Message.objects.filter(datetime__gte=datetime.strptime(request.query_params.dict()['since'], "%Y-%m-%dT%H:%M:%S.%fZ"))
+        qpdict = request.query_params.dict()
+        if 'since' in qpdict:
+            dt = datetime.strptime(qpdict['since'], "%Y-%m-%dT%H:%M:%S.%fZ")
+            msgs = Message.objects.filter(datetime__gte=dt, msg_from__in=[qpdict['p1'], qpdict['p2']], msg_to__in=[qpdict['p1'], qpdict['p2']]).order_by('datetime')[1:]
+        else:
+            msgs = Message.objects.filter(msg_from__in=[qpdict['p1'], qpdict['p2']], msg_to__in=[qpdict['p1'], qpdict['p2']]).order_by('datetime')        
     else:
         msgs = Message.objects.all()
- 
-    # if there is something in items else raise error
-    if msgs:
-        serializer = MessageSerializer(msgs, many=True)
-        return Response(serializer.data)
-    else:
-        return Response(status=status.HTTP_404_NOT_FOUND)
+
+    serializer = MessageSerializer(msgs, many=True)
+    return Response(serializer.data)
+
 
